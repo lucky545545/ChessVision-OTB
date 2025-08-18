@@ -1,13 +1,16 @@
 from ultralytics import YOLO
 import cv2
 import numpy as np
-def detect_squares(model_path, image_path, target_class="square", expected_squares=64):
-    """Detects squares in a chessboard image and returns their centers."""
-    image = cv2.imread(image_path)
-    if image is None:
-        raise FileNotFoundError(f"Image not found at {image_path}")
+import json
+def detect_squares(model, image_input, target_class="square", expected_squares=64):
+    """Detects squares in a chessboard image using a pre-loaded model."""
+    if isinstance(image_input, str):
+        image = cv2.imread(image_input)
+        if image is None:
+            raise FileNotFoundError(f"Image not found at {image_input}")
+    else:
+        image = image_input
     
-    model = YOLO(model_path)
     results = model(image)
     
     square_detections = []
@@ -62,21 +65,16 @@ def print_chessboard_labels( board = order_squares_to_chessboard , clock_side = 
     if clock_side == "right_w":
         ranks = ranks[::-1]  
         files = files[::-1]  
-        for i, row in enumerate(board):
-            for j, (x, y) in enumerate(row):
-                square_name = f"{files[i]}{ranks[j]}"
-                final_sq_list.append((square_name,(x, y)))
     
-    elif clock_side == "left_w":
-        for i, row in enumerate(board):
-            for j, (x, y) in enumerate(row):
-                square_name = f"{files[i]}{ranks[j]}"
-                final_sq_list.append((square_name,(int(x),int(y))))
+    for i, row in enumerate(board):
+        for j, (x, y) in enumerate(row):
+            square_name = f"{files[i]}{ranks[j]}"
+            final_sq_list.append((square_name, (int(x), int(y))))
 
     return final_sq_list
 
 
-def get_squares(model_path, image_path, target_class="square",
+def get_squares(model, image_input, target_class="square",
                       expected_squares=64, clock_side="right_w"):
     """
     End-to-end helper:
@@ -85,12 +83,8 @@ def get_squares(model_path, image_path, target_class="square",
     3. print chessboard-style labels
     4. return the same list produced by print_chessboard_labels
     """
-    if isinstance(image_path, str):
-        img = cv2.imread(image_path)
-    else:
-        img = image_path.copy()
     # 1. Detect
-    detections = detect_squares(model_path, image_path, target_class, expected_squares)
+    detections = detect_squares(model, image_input, target_class, expected_squares)
     # detections = [(conf, (x, y), class_name), ...]
 
     # 2. Order
@@ -107,13 +101,20 @@ def get_squares(model_path, image_path, target_class="square",
 
 
 
-def get_pieces(model_path, image_path):
-    """Detects chess pieces and returns their centers and class names."""
-    image = cv2.imread(image_path)
-    if image is None:
-        raise FileNotFoundError(f"Image not found at {image_path}")
+def get_pieces(model, image_path):
+    """Detects chess pieces and returns their centers and class names.
     
-    model = YOLO(model_path)
+    Args:
+        model: A YOLO model object for piece detection
+        image_path: Path to the image file
+    """
+    if isinstance(image_path, str):
+        image = cv2.imread(image_path)
+        if image is None:
+            raise FileNotFoundError(f"Image not found at {image_path}")
+    else:
+        image = image_path
+    
     results = model(image)
     
     square_detections = []

@@ -1,49 +1,103 @@
 import React, { useRef, useState } from 'react';
-import { Button, Image, StyleSheet, View } from 'react-native';
-import { CameraView, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
+import {
+  View, Text, StyleSheet, Button, Image, ActivityIndicator,
+} from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FileSystem from 'expo-file-system';
 
-export default function CameraScreen() {
-  /* 1️⃣ Permission hook */
+const SERVER_URL = 'http://192.168.11.123:5000/piece-detect';   // <- same as before
+
+export default function PieceDetectScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
-  /* 2️⃣ Where we’ll store the shot */
-  const [photo, setPhoto] = useState<CameraCapturedPicture | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [result, setResult]     = useState<string | null>(null); // base64 annotated jpeg
+  const [squares, setSquares]   = useState<any[]>([]);
 
-  /* Wait until permission info is loaded */
-  if (!permission) return <View />;
-  if (!permission.granted) {
+  if (!permission?.granted) {
     return (
       <View style={styles.container}>
-        <Button title="Grant camera permission" onPress={requestPermission} />
+        <Text>No camera permission</Text>
+        <Button title="Grant" onPress={requestPermission} />
       </View>
     );
   }
 
-  /* 3️⃣ The actual capture function */
-  const takePicture = async () => {
-    if (cameraRef.current) {
-      const pic = await cameraRef.current.takePictureAsync({
-        quality: 0.8,           // 0–1, optional
-        base64: false,          // set true if you need base64
-        skipProcessing: false,  // keep false for auto-rotation
+  const captureAndSend = async () => {
+    setLoading(true);
+    try {
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.8 });
+      if (!photo?.uri) throw new Error('Capture failed');
+
+      // Build FormData
+      const form = new FormData();
+      form.append('image', {
+        uri: photo.uri,
+        name: 'board.jpg',
+        type: 'image/jpeg',
+      } as any);
+      form.append('side', 'right_w');   // or expose a toggle
+
+      // POST
+      const res = await fetch(SERVER_URL, {
+        method: 'POST',
+        body: form,
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setPhoto(pic);            // pic.uri is your local file
+
+      // Decide what to do with the response
+      const contentType = res.headers.get('content-type') ?? '';
+      if (contentType.includes('application/json')) {
+        const json = await res.json();
+        setSquares(json.squares ?? []);
+        setResult(null);
+      } else {
+        // server returned annotated JPEG
+        const blob = await res.blob();
+        const b64  = await new Promise<string>((r) => {
+          const fr = new FileReader();
+          fr.onload = () => r(fr.result as string);
+          fr.readAsDataURL(blob);
+        });
+        setResult(b64);
+        setSquares([]);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
-  
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} ref={cameraRef} facing="back" mode="picture">
-        <View style={styles.buttonContainer}>
-          <Button title="📸 Take Photo" onPress={takePicture} />
-        </View>
-      </CameraView>
-
-      {photo && (
-        <Image source={{ uri: photo.uri }} style={styles.preview} />
+      {!result && !squares.length && (
+        <CameraView style={styles.camera} ref={cameraRef} facing="back" mode="picture" />
       )}
+
+      {result && (
+        <Image source={{ uri: result }} style={styles.resultImage} resizeMode="contain" />
+      )}
+
+      {squares.length > 0 && (
+        <View style={styles.list}>
+          {squares.map((s) => (
+            <Text key={s.name}>{s.name} : [{s.center.join(', ')}]</Text>
+          ))}
+        </View>
+      )}
+
+      <View style={styles.buttonBar}>
+        {!loading && !result && !squares.length && (
+          <Button title="📸 Capture & Detect" onPress={captureAndSend} />
+        )}
+        {(result || squares.length > 0) && (
+          <Button title="Retake" onPress={() => { setResult(null); setSquares([]); }} />
+        )}
+      </View>
+
+      {loading && <ActivityIndicator size="large" color="#fff" style={styles.overlay} />}
     </View>
   );
 }
@@ -51,6 +105,8 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   camera: { flex: 1 },
-  buttonContainer: { flex: 1, justifyContent: 'flex-end', margin: 32 },
-  preview: { width: 200, height: 200, alignSelf: 'center', marginTop: 20 },
+  resultImage: { flex: 1 },
+  list: { padding: 10 },
+  buttonBar: { position: 'absolute', bottom: 40, alignSelf: 'center' },
+  overlay: { position: 'absolute', top: '50%', left: '50%', marginLeft: -20 },
 });

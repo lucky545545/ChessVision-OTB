@@ -7,7 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 
 
-const SERVER_URL = 'http://192.168.83.123:5000/detect'; // <-- change IP
+const SERVER_URL = 'http://192.168.11.123:5000/detect'; // <-- change IP
 
 
 
@@ -54,8 +54,7 @@ export default function Details() {
   const captureAndRunYOLO = async () => {
     setLoading(true);
     try {
-      // 1. capture — note: CameraView does not expose takePictureAsync in all versions;
-      // if this fails you may need to switch to the legacy <Camera> component.
+      // 1. capture
       const pic = await cameraRef.current!.takePictureAsync?.({ quality: 0.8 });
       if (!pic?.uri) throw new Error('Failed to capture image');
 
@@ -73,20 +72,40 @@ export default function Details() {
       } as any);
       form.append('side', 'right_w');
 
-      const res = await fetch(SERVER_URL, {
+      console.log('Sending image to server for square detection...');
+      
+      // Add a timeout to the fetch request
+      const fetchWithTimeout = (url: string, options: any, timeout = 20000): Promise<Response> => {
+        return Promise.race([
+          fetch(url, options),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Request timed out')), timeout)
+          ),
+        ]);
+      };
+
+      const res = await fetchWithTimeout(SERVER_URL, {
         method: 'POST',
         body: form,
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Server error: ${res.status} - ${errorText}`);
+      }
+      
+      console.log('Received response from server.');
 
       // 4. save returned image
       const blob = await res.blob();
       const processedPath = `${FileSystem.documentDirectory}processed_${Date.now()}.jpg`;
       await FileSystem.writeAsStringAsync(
         processedPath,
-        await new Promise<string>((r) => {
+        await new Promise<string>((resolve, reject) => {
           const fr = new FileReader();
-          fr.onload = () => r((fr.result as string).split(',')[1]);
+          fr.onload = () => resolve((fr.result as string).split(',')[1]);
+          fr.onerror = (e) => reject(e);
           fr.readAsDataURL(blob);
         }),
         { encoding: FileSystem.EncodingType.Base64 }
@@ -94,7 +113,9 @@ export default function Details() {
 
       setProcessedUri(processedPath);
     } catch (e) {
-      console.error(e);
+      console.error('Error during square detection:', e);
+      // You could add an alert here to notify the user
+      // Alert.alert('Error', 'Could not detect squares. Please try again.');
     } finally {
       setLoading(false);
     }

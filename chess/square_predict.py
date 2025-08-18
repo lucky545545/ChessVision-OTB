@@ -7,7 +7,7 @@ import numpy as np
 MODEL_PATH = r"E:\CHESS_OTB\chess\boardfinder.v3i.yolov11\runs\detect\train\weights\best.pt"
 IMAGE_PATH = r"E:\CHESS_OTB\chess\WhatsApp Image 2025-08-09 at 17.57.17_0eab8d1e.jpg"
 TARGET_CLASS = "square"
-EXPECTED_SQUARES = 64  
+EXPECTED_SQUARES = 64
 
 def main():
     clock_side = "right_w"  # Change this to "left_w" if needed
