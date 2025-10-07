@@ -7,7 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 
 
-const SERVER_URL = 'http://192.168.11.123:5000/detect'; // <-- change IP
+const SERVER_URL = 'http://172.18.239.123:5000/detect'; // Updated with correct IP
 
 
 
@@ -64,6 +64,9 @@ export default function Details() {
       await FileSystem.copyAsync({ from: pic.uri, to: localPath });
 
       // 3. upload
+      console.log('Preparing image upload...');
+      console.log('Local path:', localPath);
+      
       const form = new FormData();
       form.append('image', {
         uri: localPath,
@@ -72,6 +75,7 @@ export default function Details() {
       } as any);
       form.append('side', 'right_w');
 
+      console.log('Server URL:', SERVER_URL);
       console.log('Sending image to server for square detection...');
       
       // Add a timeout to the fetch request
@@ -84,18 +88,26 @@ export default function Details() {
         ]);
       };
 
+      console.log('Making request to server...', SERVER_URL);
       const res = await fetchWithTimeout(SERVER_URL, {
         method: 'POST',
         body: form,
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json'
+        },
       });
+
+      console.log('Response status:', res.status);
+      console.log('Response headers:', JSON.stringify(res.headers));
 
       if (!res.ok) {
         const errorText = await res.text();
+        console.error('Server error details:', errorText);
         throw new Error(`Server error: ${res.status} - ${errorText}`);
       }
-      
-      console.log('Received response from server.');
+
+      console.log('Received successful response from server.');
 
       // 4. save returned image
       const blob = await res.blob();

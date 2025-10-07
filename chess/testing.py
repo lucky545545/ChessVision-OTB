@@ -4,14 +4,8 @@ import numpy as np
 import json
 def detect_squares(model, image_input, target_class="square", expected_squares=64):
     """Detects squares in a chessboard image using a pre-loaded model."""
-    if isinstance(image_input, str):
-        image = cv2.imread(image_input)
-        if image is None:
-            raise FileNotFoundError(f"Image not found at {image_input}")
-    else:
-        image = image_input
     
-    results = model(image)
+    results = model(image_input)
     
     square_detections = []
     for result in results:
@@ -51,7 +45,6 @@ def order_squares_to_chessboard(sq_list = detect_squares, rows=8, cols=8):
         row = y_sorted[row_start:row_end]
         row = row[np.argsort(row[:, 0])]  # Sort row by X-coordinate
         board.append(row)
-    # Step 3: Reverse row order (chessboard starts at bottom-left)
     
     return board
 def print_chessboard_labels( board = order_squares_to_chessboard , clock_side = "right_w", final_sq_list= [] ):
@@ -83,12 +76,9 @@ def get_squares(model, image_input, target_class="square",
     3. print chessboard-style labels
     4. return the same list produced by print_chessboard_labels
     """
-    # 1. Detect
     detections = detect_squares(model, image_input, target_class, expected_squares)
     # detections = [(conf, (x, y), class_name), ...]
 
-    # 2. Order
-    # strip the confidence and the class name, keep only the (x,y) centers
     centers = np.array([center for _, center, _ in detections])
     board = order_squares_to_chessboard(centers)
 

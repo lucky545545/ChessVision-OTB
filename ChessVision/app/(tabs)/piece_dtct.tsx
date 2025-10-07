@@ -5,7 +5,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 
-const SERVER_URL = 'http://192.168.11.123:5000/piece-detect';   // <- same as before
+const SERVER_URL = 'http://172.18.239.123:5000/piece-detect';   // Updated IP address
 
 export default function PieceDetectScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -48,20 +48,29 @@ export default function PieceDetectScreen() {
 
       // Decide what to do with the response
       const contentType = res.headers.get('content-type') ?? '';
-      if (contentType.includes('application/json')) {
-        const json = await res.json();
-        setSquares(json.squares ?? []);
-        setResult(null);
-      } else {
-        // server returned annotated JPEG
-        const blob = await res.blob();
-        const b64  = await new Promise<string>((r) => {
-          const fr = new FileReader();
-          fr.onload = () => r(fr.result as string);
-          fr.readAsDataURL(blob);
-        });
-        setResult(b64);
-        setSquares([]);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Server error details:', errorText);
+        throw new Error(`Server error: ${res.status} - ${errorText}`);
+      }
+
+      const json = await res.json();
+      console.log('Received response:', json);
+      
+      if (json.fen) {
+        console.log('FEN string received:', json.fen);
+      }
+      
+      if (json.image) {
+        setResult(json.image);
+      }
+      
+      if (json.squares && json.pieces) {
+        const formattedSquares = json.squares.map((s: { square: string; center: [number, number] }) => ({
+          name: s.square,
+          center: s.center
+        }));
+        setSquares(formattedSquares);
       }
     } catch (e) {
       console.error(e);

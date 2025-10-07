@@ -2,14 +2,16 @@ from ultralytics import YOLO
 import cv2
 
 # Paths
-MODEL_PATH = r"E:\CHESS_OTB\chess\boardfinder.v3i.yolov11\runs\detect\train\weights\best.pt"
-IMAGE_PATH = r"E:\CHESS_OTB\chess\new_img.jpg"
+MODEL_PATH = r"E:\CHESS_OTB\otbv5_finetune2\weights\best.pt"
+IMAGE_PATH = r"E:\CHESS_OTB\chess\WhatsApp Image 2025-08-25 at 20.05.37_e7607e3a.jpg"
 
 # Load image and model
 image = cv2.imread(IMAGE_PATH)
 model = YOLO(MODEL_PATH)  # load your custom model
-
+matrices = model.val(data = r"E:\CHESS_OTB\chess\otb.v4i.yolov11\data.yaml")  # optional, for validation
 # Run inference
+print(matrices)
+
 results = model(IMAGE_PATH)  # can pass the path directly
 final_list = []
 # Process results

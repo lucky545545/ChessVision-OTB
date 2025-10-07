@@ -40,7 +40,45 @@ def assign_pieces_to_squares(squares, pieces):
         board_state.append((square_name, piece_type))
     
     return board_state
-
+def get_fen_from_board_state(board_state):
+    """
+    Converts the board state into a FEN string.
+    
+    Args:
+        board_state: List of (square_name, piece_type) tuples
+    
+    Returns:
+        FEN string representing the board state
+    """
+    # Map piece types to FEN characters
+    piece_to_fen = {
+    'WhitePawn': 'P', 'WhiteRook': 'R', 'WhiteKnight': 'N',
+    'WhiteBishop': 'B', 'WhiteQueen': 'Q', 'WhiteKing': 'K',
+    'BlackPawn': 'p', 'BlackRook': 'r', 'BlackKnight': 'n',
+    'BlackBishop': 'b', 'BlackQueen': 'q', 'BlackKing': 'k'
+}
+    
+    # Initialize empty board
+    fen_rows = []
+    for rank in range(8, 0, -1):
+        fen_row = ''
+        empty_count = 0
+        for file in 'ABCDEFGH':
+            square_name = f"{file}{rank}"
+            piece_type = next((ptype for sq_name, ptype in board_state if sq_name == square_name), None)
+            if piece_type:
+                if empty_count > 0:
+                    fen_row += str(empty_count)
+                    empty_count = 0
+                fen_row += piece_to_fen.get(piece_type, '?')
+            else:
+                empty_count += 1
+        if empty_count > 0:
+            fen_row += str(empty_count)
+        fen_rows.append(fen_row)
+    
+    fen_string = '/'.join(fen_rows) + " w KQkq - 0 1"  
+    return fen_string
 def get_board_state(image_path):
     """Get the current state of the chess board from an image."""
     board_model, piece_model = load_models()
