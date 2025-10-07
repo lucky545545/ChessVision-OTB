@@ -1,7 +1,11 @@
 # ChessVision-OTB (Over The Board)
 
 A computer vision-based chess position recognition system that can detect chess pieces and boards from real-world photos and convert them into digital chess positions.
-
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=5n3iaH3oFlc" target="_blank">
+    <img src="./demo/video_thumbnail.png" alt="Watch the Video Demo" width="400"/>
+  </a>
+</p>
 ## Features
 
 - Real-time chess board square detection
